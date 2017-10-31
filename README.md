@@ -1,11 +1,11 @@
 Indiegogo php client
 ====
 
-A PHP library for reading and writing SPSS data files.
+
 
 ## Requirements
 
-* PHP 5.3.0 and up.
+* PHP 5.4.0 and up.
 
 ## Installation
 
