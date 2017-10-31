@@ -282,7 +282,7 @@ class Client
     }
 
     /**
-     * Master call. It makes the requests to the Wunderlist API endpoints.
+     * Master call. It makes the requests to the API endpoints.
      *
      * @param string $httpMethod
      * @param string $endPoint
