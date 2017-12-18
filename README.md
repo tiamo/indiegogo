@@ -22,12 +22,32 @@ to the require section of your `composer.json` file.
 
 ## Usage
 
+Initialize client
 ```php
-$apiToken = '...';
-$client = new \Indiegogo\Client($apiToken);
+$client = new \Indiegogo\Client();
 if ($client->auth($email, $password)) {
     $me = $client->getCredentials();
-    ...
+    // ...
+}
+```
+
+Export Contributions
+```php
+$res = $client->contributionExport($campaignId);
+$job = $client->jobStatuses($res['job_id']);
+if ($job['status'] == 'completed') {
+    echo $job['download_url'];
+}
+```
+
+Import Contributions
+```php
+$res = $client->contributionImport($campaignId, [
+    'file' => curl_file_create($filePath)
+]);
+$job = $client->jobStatuses($res['job_id']);
+if ($job['status'] == 'completed') {
+   // ...
 }
 ```
 

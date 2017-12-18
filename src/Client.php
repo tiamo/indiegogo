@@ -8,17 +8,28 @@ namespace Indiegogo;
  */
 class Client
 {
+    const DOMAIN = 'indiegogo.com';
+
     /**
+     * Base URL for the Indiegogo Auth.
+     *
      * @var string
      */
-    public $authUrl = 'https://auth.indiegogo.com';
+    public $authUrl = 'https://auth.' . self::DOMAIN;
+
+    /**
+     * Base URL for the Indiegogo Private API.
+     *
+     * @var string
+     */
+    public $privateApiUrl = 'https://www.' . self::DOMAIN . '/private_api';
 
     /**
      * Base URL for the Indiegogo API.
      *
      * @var string
      */
-    public $apiUrl = 'https://api.indiegogo.com';
+    public $apiUrl = 'https://api.' . self::DOMAIN;
 
     /**
      * API version
@@ -29,6 +40,9 @@ class Client
 
     /**
      * The Indiegogo api token.
+     * If API token is empty then use private api
+     *
+     * @var string
      */
     public $apiToken;
 
@@ -281,6 +295,52 @@ class Client
         return false;
     }
 
+
+    // Private API Methods
+
+
+    /**
+     * @param $campaignId
+     * @param array $params
+     * @return array
+     *
+     * Example: {job_id: "..."}
+     */
+    public function contributionExport($campaignId, $params = [])
+    {
+        $this->checkPrivate();
+        return $this->call('POST', "campaigns/{$campaignId}/contributions/export", $params);
+
+    }
+
+    /**
+     * @param string $campaignId
+     * @param array $params
+     * @return array
+     *
+     * Example: {job_id: "..."}
+     */
+    public function contributionImport($campaignId, $params = [])
+    {
+        $this->checkPrivate();
+        return $this->call('POST', "campaigns/{$campaignId}/contributions/import", $params);
+
+    }
+
+    /**
+     * @param string $jobId
+     * @return array
+     *
+     * Example: {time: 12345, status: "working"}
+     * Example: {time: 99999, status: "completed", total: 99, download_url: "..."}
+     */
+    public function jobStatuses($jobId)
+    {
+        $this->checkPrivate();
+        return $this->call('GET', "job_statuses/{$jobId}.json");
+
+    }
+
     /**
      * Master call. It makes the requests to the API endpoints.
      *
@@ -293,32 +353,42 @@ class Client
     {
         $httpMethod = strtoupper($httpMethod);
 
-        $url = $this->apiUrl . '/' . $this->apiVersion . '/' . $endPoint . '.json';
-
         if (isset($params['query'])) {
-            $query = $params['query'];
+            $query = (array)$params['query'];
             unset($params['query']);
         } else {
             $query = [];
         }
 
-        $query['api_token'] = $this->getApiToken();
-        $query['access_token'] = $this->getAccessToken();
+        $query['access_token'] = $this->accessToken;
+
+        if ($this->apiToken) {
+            $url = $this->apiUrl . '/' . $this->apiVersion . '/' . $endPoint . '.json';
+            $query['api_token'] = $this->apiToken;
+        } else {
+            $url = $this->privateApiUrl . '/' . $endPoint;
+        }
 
         $ch = curl_init($url . '?' . http_build_query($query));
-//        curl_setopt($ch, CURLOPT_VERBOSE, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // false for https
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $httpMethod);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:50.0) Gecko/20100101 Firefox/50.0');
+        curl_setopt($ch, CURLOPT_VERBOSE, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // false for https
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
         curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/json'
-        ]);
+
+//        if (!isset($params['file'])) {
+//            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+//                'Content-Type: application/json'
+//            ]);
+//        }
 
         if (!empty($params)) {
             curl_setopt($ch, CURLOPT_POSTFIELDS,
-                isset($params['json']) ? json_encode($params['json']) : http_build_query($params)
+                isset($params['json']) ?
+                    json_encode($params['json']) :
+                    $params
             );
         }
 
@@ -328,5 +398,15 @@ class Client
         curl_close($ch);
 
         return json_decode($response, true);
+    }
+
+    /**
+     * @throws \Exception
+     */
+    protected function checkPrivate()
+    {
+        if (!empty($this->apiToken)) {
+            throw new \Exception('This method available only for private api.');
+        }
     }
 }
